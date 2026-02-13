@@ -825,7 +825,7 @@ def refresh_data():
 
     send_email_outlook(
         from_addr=FROM_ADDR,
-        to_addrs=["jakub.swiniarski@studentdepot.pl","adam.swiniarski@studentdepot.pl", "sylwia.rogalska@studentdepot.pl"],
+        to_addrs=["Mail@gmail.com"],
         subject="Tygodniowa aktualizacja cen akademików",
         body_text="Cześć,\nW załączniku przesyłam najnowszy plik Excel z cenami akademików.",
         attachment_path=excel_file,
