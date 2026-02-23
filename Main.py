@@ -66,6 +66,9 @@ urls_Zeitraum = {
     "Kraków Koszykarska(Zeitraum)": "https://students.zeitraum.re/pl/location/koszykarska/",
     "Kraków Racławicka(Zeitraum)": "https://students.zeitraum.re/pl/location/raclawicka/",
     "Warszawa Solec(Zeitraum)": "https://students.zeitraum.re/pl/location/solec/",
+    "Prague U Průhonu(Zeitraum)": "https://students.zeitraum.re/pl/location/u-pruhonu/",
+    "Prague Seifertova(Zeitraum)": "https://students.zeitraum.re/pl/location/seifertova/",
+    "Prague Na Šachtě(Zeitraum)": "https://students.zeitraum.re/pl/location/na-sachte/"
 }
 
 urls_Milestone = {
@@ -123,6 +126,41 @@ urls_Studentspace = {
     "Kraków Al.29 Listopada(Studentspace)": "https://www.studentspace.pl/akademiki-krakow/29-listopada",
     "Kraków Wita Stwosza A(Studentspace)": "https://www.studentspace.pl/akademiki-krakow/wita-stwosza-a",
     "Kraków Wita Stwosza B(Studentspace)": "https://www.studentspace.pl/akademiki-krakow/wita-stwosza-b"
+}
+
+urls_FizzPrague = {
+    "Prague(TheFizz)" : "https://www.the-fizz.com/en/student-accommodation/prague/"
+}
+urls_chillhills = {
+    "Brno Kunzova(Chillhills)" : "https://www.chillhills.cz/en/nase-komplexy/kunzova/",
+    "Brno Dominikanske Square(Chillhills)" : "https://www.chillhills.cz/en/nase-komplexy/dominikanske-namesti/",
+    "Brno Jeronýmova street(Chillhills)" : "https://www.chillhills.cz/en/nase-komplexy/jeronymova/",
+    "Brno Behounska street(Chillhills)" : "https://www.chillhills.cz/en/nase-komplexy/behounska/",
+    "Brno Cihlarska(Chillhills)" : "https://www.chillhills.cz/en/nase-komplexy/cihlarska/",
+    "Brno Spolkova 7(Chillhills)" : "https://www.chillhills.cz/en/nase-komplexy/spolkova/",
+    "Brno Pradlacka(Chillhills)" : "https://www.chillhills.cz/en/nase-komplexy/pradlacka/",
+    "Brno Masarykova(Chillhills)" : "https://www.chillhills.cz/en/masarykova/",
+    "Brno Obla(Chillhills)" : "https://www.chillhills.cz/en/nase-komplexy/obla/",
+    "Brno Spolkova 4,6(Chillhills)" : "https://www.chillhills.cz/en/nase-komplexy/spolkova-2/",
+    "Brno Kovarska(Chillhills)" : "https://www.chillhills.cz/en/nase-komplexy/kovarska/",
+    "Brno Uzbecka street(Chillhills)" : "https://www.chillhills.cz/en/nase-komplexy/uzbecka/",
+    "Brno Rumiste(Chillhills)" : "https://www.chillhills.cz/en-nase-komplexy-rumiste/",
+    "Brno Novy Cejl(Chillhills)" : "https://www.chillhills.cz/en/novy-cejl/",
+    "Brno Dornych(Chillhills)" : "https://www.chillhills.cz/en/dornych/",
+    "Brno Bratislavska(Chillhills)" : "https://www.chillhills.cz/en/bratislavska/",
+    "Brno Krenova(Chillhills)" : "https://www.chillhills.cz/en/krenova/",
+    "Brno Oderska(Chillhills)" : "https://www.chillhills.cz/en/oderska/",
+    "Brno Slatina(Chillhills)" : "https://www.chillhills.cz/en/slatina/",
+    "Brno Zidlochovice(Chillhills)" : "https://www.chillhills.cz/en/zidlochovice/",
+}
+
+urls_scandium = {
+
+    "Tallinn lava(Scandium living)": "https://scandiumliving.ee/en/building/laava-apartments/",
+    "Tallinn Järve 40(Scandium living)": "https://scandiumliving.ee/en/building/jarve-40/",
+    "Tallinn Newton(Scandium living)": "https://scandiumliving.ee/en/building/newton-studios/",
+    "Tallinn Magma(Scandium living)": "https://scandiumliving.ee/en/building/magma-studios/",
+    "Tallinn Marati(Scandium living)": "https://scandiumliving.ee/en/building/new-marati-kvartal/",
 }
 
 
@@ -409,6 +447,175 @@ def parse_studentspace_page(soup):
 
     return pd.DataFrame(rows)
 
+def parse_FizzPrague_page(soup):
+    rows = []
+
+    def eur_value(txt: str):
+        m = re.search(r"€\s*([\d\.,]+)", txt)
+        if not m:
+            return None
+        num = m.group(1).replace(",", "")
+        try:
+            return float(num)
+        except:
+            return None
+
+    # Każdy typ pokoju jest w panelu:
+    panels = soup.select("div.pex-room-type.panel.panel-default")
+    if not panels:
+        panels = soup.select("div.pex-room-type")
+
+    for panel in panels:
+        # --- NAZWA ---
+        # Zwykle jest tu (widać w DOM: text-center below-image)
+        name_el = panel.select_one("div.text-center.below-image")
+        name = name_el.get_text(" ", strip=True) if name_el else ""
+
+        # fallbacki, gdyby nazwa była gdzie indziej
+        if not name:
+            name_el = panel.select_one("h2, h3, .room-type-headings")
+            name = name_el.get_text(" ", strip=True) if name_el else "brak"
+
+        # --- JEŚLI ZAREZERWOWANE / BRAK OFERTY ---
+        no_offer_el = panel.select_one("div.room-type-information-no-offer")
+        if no_offer_el:
+            # jeśli jest komunikat "Currently no ... available" → cena brak
+            rows.append({"Room Type": name, "Price": "brak"})
+            continue
+
+        # --- CENA: bierzemy najniższą miesięczną w EUR z tego panelu ---
+        candidates = []
+        for sp in panel.select("span.pex-room-price"):
+            txt = sp.get_text(" ", strip=True)
+            low = txt.lower()
+
+            if "€" not in txt:
+                continue
+            if ("monthly" not in low) and ("per month" not in low) and ("month" not in low) and ("/mo" not in low):
+                continue
+
+            v = eur_value(txt)
+            if v is not None and v >= 100:  # filtr na śmieci
+                candidates.append(v)
+
+        if candidates:
+            best = min(candidates)
+            price_out = f"{best:.2f} EUR".replace(".00", "")
+        else:
+            price_out = "brak"
+
+        rows.append({"Room Type": name, "Price": price_out})
+
+    # usuń puste/brak nazwy jeśli się pojawiły
+    rows = [r for r in rows if r["Room Type"] and r["Room Type"] != "brak"]
+
+    # deduplikacja po nazwie: najniższa cena, a jak same "brak" to "brak"
+    best_by_name = {}
+    for r in rows:
+        n, p = r["Room Type"], r["Price"]
+        if p == "brak":
+            best_by_name.setdefault(n, "brak")
+            continue
+        v = eur_value(p)
+        if v is None:
+            best_by_name.setdefault(n, p)
+            continue
+        if n not in best_by_name or best_by_name[n] == "brak" or eur_value(best_by_name[n]) > v:
+            best_by_name[n] = p
+
+    out = [{"Room Type": n, "Price": pr} for n, pr in best_by_name.items()]
+    return pd.DataFrame(out)
+
+def parse_chillhills_page(soup):
+
+    def norm(t: str) -> str:
+        return re.sub(r"\s+", " ", (t or "").replace("\u00A0", " ")).strip()
+
+    # 1) znajdź nagłówek sekcji: "Price list" (EN) albo "Ceník" (CZ)
+    start = soup.find(lambda tag: tag.name in ("h1", "h2", "h3")
+                                 and norm(tag.get_text(" ", strip=True)).lower() in ("price list", "ceník", "ceník"))
+    if not start:
+        print("[ChillHills] ❌ Nie znalazłem sekcji 'Price list/Ceník'.")
+        return pd.DataFrame([])
+    rows = []
+    expecting_name = True
+    current_name = None
+
+    for h3 in start.find_all_next("h3"):
+        text = norm(h3.get_text(" ", strip=True))
+        if not text:
+            continue
+
+        if expecting_name:
+            # IGNORUJ deposit jako pozycję
+            if "deposit" in text.lower() or "kauce" in text.lower():
+                current_name = None
+                expecting_name = True
+                continue
+
+            current_name = text
+            expecting_name = False
+        else:
+            # to jest cena (np. "from 5 995 CZK / month")
+            price_txt = text
+
+            # jeśli to jednak opis depozytu / brak ceny – pomiń
+            if "deposit" in price_txt.lower() or "kauce" in price_txt.lower():
+                current_name = None
+                expecting_name = True
+                continue
+
+            # dodaj parę
+            if current_name:
+                rows.append({"Room Type": current_name, "Price": price_txt})
+
+            # reset
+            current_name = None
+            expecting_name = True
+
+    return pd.DataFrame(rows)
+
+def parse_scandium_page(soup):
+    rows = []
+
+    # karty ofert: mają klasę "object-card" (widać na screenie)
+    cards = soup.select("li.object-card, li[class*='object-card']")
+    if not cards:
+        # fallback, gdyby się zmieniły klasy
+        cards = soup.select("li:has(h3 a)")
+
+    for card in cards:
+        # --- NAZWA ---
+        name_el = card.select_one("h3 a")
+        room_type = name_el.get_text(" ", strip=True) if name_el else "brak"
+
+        # --- CENA ---
+        # Na screenie: p.text-xs.font-bold ... zawiera "325 €" oraz span "/ month"
+        price_el = card.select_one("p.text-xs.font-bold")
+        price_text = price_el.get_text(" ", strip=True) if price_el else "brak"
+
+        # jeśli pusta / śmieci → "brak"
+        if not price_text or price_text.strip() == "":
+            price_text = "brak"
+
+        # opcjonalnie: odetnij wszystko po "/"
+        # np. "325 € / month" -> "325 €"
+        price_text = price_text.split("/")[0].strip()
+
+        # filtr bezpieczeństwa: muszą być cyfry, inaczej "brak"
+        if price_text != "brak" and not re.search(r"\d", price_text):
+            price_text = "brak"
+
+        # odfiltruj przypadki typu deposit, jeśli kiedyś się trafią
+        if price_text != "brak" and re.search(r"\bdeposit\b|\bkauce\b", price_text, re.IGNORECASE):
+            price_text = "brak"
+
+        rows.append({"Room Type": room_type, "Price": price_text})
+
+    # usuń puste nazwy
+    rows = [r for r in rows if r["Room Type"] and r["Room Type"] != "brak"]
+    return pd.DataFrame(rows)
+
 
 def normalize_text(s: str) -> str:
     if not isinstance(s, str):
@@ -428,31 +635,53 @@ def normalize_room_type(rt: str) -> str:
 def clean_price(price_str: str) -> str:
     if not price_str or price_str.lower() == "brak":
         return "brak"
-    match = re.search(r'([\d\s,\.]+)\s*(zł|eur|€)', price_str, re.IGNORECASE)
+
+    match = re.search(r'([\d\s,\.]+)\s*(zł|eur|€|czk)', price_str, re.IGNORECASE)
+
     if match:
         number_str, currency = match.groups()
+
         number_str = number_str.replace(" ", "").replace("\u00A0", "").replace(".", "")
         number_str = number_str.replace(',', '.')
+
         try:
             number = float(number_str)
         except ValueError:
             return price_str
+
         number_int = int(round(number))
-        if currency.lower() in ["€", "eur"]:
+
+        cur = currency.lower()
+        if cur in ["€", "eur"]:
             currency_str = "EUR"
+        elif cur == "czk":
+            currency_str = "CZK"
         else:
             currency_str = "zł"
+
         return f"{number_int} {currency_str}"
+
     else:
-        currency_str = "EUR" if ("€" in price_str or "eur" in price_str.lower()) else "zł"
+        low = price_str.lower()
+
+        if "€" in price_str or "eur" in low:
+            currency_str = "EUR"
+        elif "czk" in low:
+            currency_str = "CZK"
+        else:
+            currency_str = "zł"
+
         cleaned_number = re.sub(r'[^\d,\.]', '', price_str)
         cleaned_number = cleaned_number.replace('.', '').replace(',', '.')
+
         if not cleaned_number:
             return "brak"
+
         try:
             number = float(cleaned_number)
         except ValueError:
             return price_str
+
         number_int = int(round(number))
         return f"{number_int} {currency_str}"
 
@@ -477,7 +706,7 @@ def extract_academy_info(academy_key):
     if not object_name:
         object_name = location
     return location.title(), object_name.title(), owner.title()
-
+"""
 def send_email_outlook(from_addr, to_addrs, subject, body_text, attachment_path, smtp_username, smtp_password,
     smtp_server="smtp-mail.outlook.com", smtp_port=587):
     msg = MIMEMultipart()
@@ -501,7 +730,7 @@ def send_email_outlook(from_addr, to_addrs, subject, body_text, attachment_path,
         server.login(smtp_username, smtp_password)
         server.send_message(msg)
     print("Wiadomość wysłana!")
-
+"""
 
 def load_page_soup(page, url):
     try:
@@ -661,6 +890,52 @@ def refresh_data():
                 continue
             df = parse_studentspace_page(soup)
             add_data(academy_key, df)
+
+
+        for academy_key, url in urls_FizzPrague.items():
+            print(f"🔄 Pobieranie danych dla: {academy_key} (TheFizz)...")
+            page.goto(url, timeout=60000, wait_until="networkidle")
+
+            # ważne: doczekaj cen w DOM
+            page.wait_for_selector("span.pex-room-price", timeout=20000, state="attached")
+
+            soup = BeautifulSoup(page.content(), "html.parser")
+            df = parse_FizzPrague_page(soup)
+
+            print(f"[TheFizz] rekordów: {len(df)}")
+            if df.empty:
+                print("[TheFizz] ❗ Nic nie znaleziono (pusty DF)")
+                continue
+
+            add_data(academy_key, df)
+
+        for academy_key, url in urls_chillhills.items():
+            print(f"🔄 Pobieranie danych dla: {academy_key} (ChillHills)...")
+            soup = load_page_soup(page, url)
+            if soup is None:
+                continue
+            df = parse_chillhills_page(soup)
+            add_data(academy_key, df)
+
+        for academy_key, url in urls_scandium.items():
+            print(f"🔄 Pobieranie danych dla: {academy_key} (Scandium)...")
+
+            # to jest strona JS-owa, więc lepiej networkidle
+            page.goto(url, timeout=60000, wait_until="networkidle")
+
+            # poczekaj aż w ogóle pojawią się karty
+            page.wait_for_selector("li.object-card h3 a", timeout=20000)
+
+            soup = BeautifulSoup(page.content(), "html.parser")
+            df = parse_scandium_page(soup)
+
+            print(f"[Scandium] rekordów: {len(df)}")
+            if df.empty:
+                print("[Scandium] ❗ Nic nie znaleziono (pusty DF)")
+                continue
+
+            add_data(academy_key, df)
+
 
         browser.close()
 
@@ -822,7 +1097,7 @@ def refresh_data():
 
     print(f"🎉 Dane zapisane do {excel_file} w kolumnie: {current_date}")
 
-
+"""
     send_email_outlook(
         from_addr=FROM_ADDR,
         to_addrs=["jakub.swiniarski@studentdepot.pl","adam.swiniarski@studentdepot.pl", "sylwia.rogalska@studentdepot.pl"],
@@ -832,7 +1107,7 @@ def refresh_data():
         smtp_username=SMTP_USERNAME,
         smtp_password=SMTP_PASSWORD
     )
-
+"""
 
 if __name__ == "__main__":
     refresh_data()
